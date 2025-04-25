@@ -1,22 +1,64 @@
 body {
-    text-align: center;
-    font-family: Arial;
-    background: #f9f9f9;
-    padding: 10px;
-  }
-  button {
-    padding: 10px 20px;
-    font-size: 16px;
-    background: #0066cc;
-    color: white;
-    border: none;
-    border-radius: 8px;
-  }
-  #map {
-    height: 500px;
-    width: 90%;
-    margin: auto;
-    margin-top: 20px;
-    border-radius: 10px;
-  }
-  
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card {
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 1.5rem;
+}
+
+#outputText {
+    font-size: 1.1rem;
+    background-color: #f8f9fa;
+    border: 2px solid #dee2e6;
+}
+
+#status {
+    transition: all 0.3s ease;
+}
+
+.listening {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        background-color: #d1e7dd;
+    }
+    50% {
+        background-color: #a3cfbb;
+    }
+    100% {
+        background-color: #d1e7dd;
+    }
+}
+
+.btn {
+    transition: all 0.2s ease;
+}
+
+.btn i {
+    margin-right: 5px;
+}
+
+/* Language specific font support */
+[lang="ta"], [lang="ta-IN"] {
+    font-family: 'Latha', 'Vijaya', 'Tamil MN', sans-serif;
+}
+
+[lang="te"], [lang="te-IN"] {
+    font-family: 'Gautami', 'Vani', 'Telugu MN', sans-serif;
+}
+
+[lang="hi"], [lang="hi-IN"] {
+    font-family: 'Mangal', 'Arial Unicode MS', 'Hindi MN', sans-serif;
+}
+
+[lang="ml"], [lang="ml-IN"] {
+    font-family: 'AnjaliOldLipi', 'Rachana', 'Malayalam MN', sans-serif;
+}

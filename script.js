@@ -1,89 +1,152 @@
-let map = L.map('map').setView([10.77, 79.84], 13); // Your initial map center
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: 'Map data © OpenStreetMap contributors'
-}).addTo(map);
-
-let fromPlace = "";
-let toPlace = "";
-
-function startListening() {
-  fromPlace = "";
-  toPlace = "";
-
-  speak("Where are you starting from?");
-  listenForSpeech((result1) => {
-    fromPlace = result1;
-    document.getElementById("destinationOutput").innerText = `From: ${fromPlace}`;
-
-    speak("Where do you want to go?");
-    listenForSpeech((result2) => {
-      toPlace = result2;
-      document.getElementById("destinationOutput").innerText += ` → To: ${toPlace}`;
-      fetchCoordinates(fromPlace, toPlace);
-    });
-  });
-}
-
-function listenForSpeech(callback) {
-  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-  recognition.lang = 'en-US';
-  recognition.start();
-
-  recognition.onresult = function (event) {
-    const transcript = event.results[0][0].transcript;
-    callback(transcript);
-  };
-
-  recognition.onerror = function (event) {
-    alert("Speech recognition error: " + event.error);
-  };
-}
-
-function speak(text) {
-  const utterance = new SpeechSynthesisUtterance(text);
-  window.speechSynthesis.speak(utterance);
-}
-
-function fetchCoordinates(fromText, toText) {
-  Promise.all([
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fromText)}`).then(res => res.json()),
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(toText)}`).then(res => res.json())
-  ])
-  .then(([fromData, toData]) => {
-    if (!fromData.length || !toData.length) {
-      alert("Location not found!");
-      return;
+document.addEventListener('DOMContentLoaded', function() {
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const languageSelect = document.getElementById('languageSelect');
+    const outputText = document.getElementById('outputText');
+    const statusDiv = document.getElementById('status');
+    
+    let recognition;
+    let isListening = false;
+    
+    // Check if browser supports speech recognition
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        statusDiv.textContent = 'Status: Speech recognition not supported in this browser. Try Chrome or Edge.';
+        statusDiv.className = 'alert alert-danger';
+        startBtn.disabled = true;
+        return;
     }
-
-    const start = [parseFloat(fromData[0].lon), parseFloat(fromData[0].lat)];
-    const end = [parseFloat(toData[0].lon), parseFloat(toData[0].lat)];
-
-    getRoute(start, end);
-  });
-}
-
-function getRoute(start, end) {
-  const apiKey = '5b3ce3597851110001cf6248fbc16506d832447089fbe222827fcd2b';
-
-  fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
-    method: 'POST',
-    headers: {
-      'Authorization': apiKey,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      coordinates: [start, end]
-    })
-  })
-    .then(response => response.json())
-    .then(data => {
-      L.geoJSON(data).addTo(map);
-      map.fitBounds([
-        [start[1], start[0]],
-        [end[1], end[0]]
-      ]);
-      speak("Route from " + fromPlace + " to " + toPlace + " has been displayed.");
-    })
-    .catch(err => console.error(err));
-}
+    
+    // Initialize speech recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    
+    recognition.onstart = function() {
+        isListening = true;
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        statusDiv.textContent = 'Status: Listening... Speak now';
+        statusDiv.className = 'alert alert-success listening';
+    };
+    
+    recognition.onend = function() {
+        if (isListening) {
+            recognition.start(); // Restart recognition if still supposed to be listening
+        } else {
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            statusDiv.textContent = 'Status: Ready';
+            statusDiv.className = 'alert alert-info';
+        }
+    };
+    
+    recognition.onerror = function(event) {
+        isListening = false;
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        statusDiv.textContent = 'Status: Error occurred - ' + event.error;
+        statusDiv.className = 'alert alert-danger';
+    };
+    
+    recognition.onresult = function(event) {
+        let interimTranscript = '';
+        let finalTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                finalTranscript += transcript;
+            } else {
+                interimTranscript += transcript;
+            }
+        }
+        
+        // Display both interim and final results
+        outputText.value = finalTranscript + interimTranscript;
+        
+        // Auto-scroll to bottom
+        outputText.scrollTop = outputText.scrollHeight;
+    };
+    
+    // Start button click handler
+    startBtn.addEventListener('click', function() {
+        const selectedLanguage = languageSelect.value;
+        recognition.lang = selectedLanguage;
+        
+        try {
+            recognition.start();
+        } catch (error) {
+            statusDiv.textContent = 'Status: Error starting recognition - ' + error.message;
+            statusDiv.className = 'alert alert-danger';
+        }
+    });
+    
+    // Stop button click handler
+    stopBtn.addEventListener('click', function() {
+        isListening = false;
+        recognition.stop();
+    });
+    
+    // Copy button click handler
+    copyBtn.addEventListener('click', function() {
+        outputText.select();
+        document.execCommand('copy');
+        
+        // Show temporary feedback
+        const originalText = copyBtn.innerHTML;
+        copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        setTimeout(() => {
+            copyBtn.innerHTML = originalText;
+        }, 2000);
+    });
+    
+    // Clear button click handler
+    clearBtn.addEventListener('click', function() {
+        outputText.value = '';
+    });
+    
+    // Download button click handler
+    downloadBtn.addEventListener('click', function() {
+        const text = outputText.value;
+        if (!text.trim()) {
+            statusDiv.textContent = 'Status: No text to download';
+            statusDiv.className = 'alert alert-warning';
+            return;
+        }
+        
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        // Get language name for filename
+        const langName = languageSelect.options[languageSelect.selectedIndex].text.split(' ')[0];
+        a.download = `speech-recognition-${langName.toLowerCase()}-${new Date().toISOString().slice(0,10)}.txt`;
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Show temporary feedback
+        statusDiv.textContent = 'Status: Text downloaded successfully';
+        statusDiv.className = 'alert alert-success';
+        setTimeout(() => {
+            statusDiv.textContent = 'Status: Ready';
+            statusDiv.className = 'alert alert-info';
+        }, 3000);
+    });
+    
+    // Language change handler
+    languageSelect.addEventListener('change', function() {
+        if (isListening) {
+            recognition.stop();
+            recognition.lang = this.value;
+            recognition.start();
+        }
+    });
+});
